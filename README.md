@@ -1,4 +1,4 @@
-# 'paper name'
+# From Simulations to Surrogates: Neural Networks Enhancing Burn Wound Healing Predictions
 
 - <code>data/</code>: Contains simulation data required to run the code.
 - <code>notebooks/</code>: Contains the notebooks used to train and evaluate LSTM and PINN.
