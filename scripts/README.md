@@ -1,0 +1,2 @@
+- <code>pinn_500x500.py</code>: example of .py file to run on snellius GPU cluster.
+- <code>template.job</code>: template used to run the jobs on snellius GPU cluster.
