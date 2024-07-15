@@ -206,7 +206,7 @@ model.add(Reshape((500, 500, 6)))
 model.compile(optimizer=Adam(learning_rate=initial_lr), loss='mse', metrics=[r_squared, 'mape', accuracy, average_relative_rmse, 'msle', 'mae'])
 print(model.summary())
 
-history = model.fit(X_train, y_train, epochs=1000, batch_size=100, validation_data=(X_val, y_val), callbacks=[lr_scheduler, early_stopping])
+history = model.fit(X_train, y_train, epochs=600, batch_size=100, validation_data=(X_val, y_val), callbacks=[lr_scheduler, early_stopping])
 print("Training Loss:", history.history['loss'])
 
 loss = model.evaluate(X_test, y_test)

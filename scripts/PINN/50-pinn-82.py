@@ -81,7 +81,7 @@ for time in unique_time:
     # filter data for current value of time
     data_time = data[data['time'] == time]
     
-    array = np.zeros((100, 100, len(cytokines)))
+    array = np.zeros((50, 50, len(cytokines)))
     
     # get X and Y coordinates
     x = data_time['xCOM'].astype(int)
