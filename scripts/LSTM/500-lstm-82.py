@@ -17,7 +17,7 @@ from keras.callbacks import LearningRateScheduler, EarlyStopping, Callback
 from keras.metrics import RootMeanSquaredError
 from keras.layers import Dropout,  TimeDistributed
 from keras.regularizers import l2
-from tensorflow.keras.layers import Input, Dense, Dropout, LayerNormalization, MultiHeadAttention, Concatenate
+from tensorflow.keras.layers import Input, Dense, Dropout, LayerNormalization, MultiHeadAttention, Concatenate, BatchNormalization
 from sklearn.model_selection import train_test_split
 from tensorflow.keras import layers, models, optimizers, losses, metrics
 tf.keras.backend.set_floatx('float64')
@@ -106,7 +106,7 @@ array = arrays[0]
 print("Shape of the array:", array.shape)
 print("Value at position (78,62):", array[78,62])
 
-sequence_length = 10
+sequence_length = 2
 input_sequences = []
 output_values = []
 
@@ -139,11 +139,6 @@ def r_squared(y_true, y_pred):
     SS_tot = K.sum(K.square(y_true - K.mean(y_true)))
     return 1 - SS_res / (SS_tot + K.epsilon())
 
-def average_relative_rmse(y_true, y_pred):
-    return K.sqrt(K.mean(K.square((y_pred - y_true) / K.clip(K.abs(y_true), K.epsilon(), None))))
-
-#def average_relative_error(y_true, y_pred):
-    return K.mean(K.abs((y_pred - y_true) / K.clip(K.abs(y_true), K.epsilon(), None)))
 
 def accuracy(y_true, y_pred):
     abs_diff = K.abs(y_true - y_pred)
@@ -151,9 +146,6 @@ def accuracy(y_true, y_pred):
     accurate_predictions = K.less_equal(abs_diff, threshold)
     accuracy = K.mean(accurate_predictions)
     return accuracy
-
-#def explained_variance(y_true, y_pred):
-    return 1 - K.var(y_true - y_pred) / K.var(y_true)
 
 #lr scheduler
 def lr_schedule(epoch, lr):
@@ -169,12 +161,12 @@ lr_scheduler = LearningRateScheduler(lr_schedule)
 early_stopping = EarlyStopping(monitor='val_loss', patience=150, verbose=1, restore_best_weights=True)
 
 initial_lr = 1e-2
-sequence_length =10
+sequence_length =2
 
 input_sequences_reshaped = input_sequences.reshape(input_sequences.shape[0], input_sequences.shape[1], -1)
 
 #data split
-train_size = int(0.7 * input_sequences_reshaped.shape[0])
+train_size = int(0.72 * input_sequences_reshaped.shape[0])
 val_size = int(0.1 * input_sequences_reshaped.shape[0])
 test_size = input_sequences_reshaped.shape[0] - train_size - val_size
 
@@ -199,10 +191,10 @@ model.add(LSTM(units=256, return_sequences=True, input_shape=(sequence_length, 5
 model.add(LSTM(units=256))
 model.add(Dense(units=256, kernel_regularizer=l2(0.03)))
 model.add(Dense(units=256, kernel_regularizer=l2(0.03)))
-model.add(Dense(units=256, kernel_regularizer=l2(0.03)))
+model.add(BatchNormalization())
 model.add(Dense(units=500 * 500 * 6, activation='relu'))
 model.add(Reshape((500, 500, 6)))
-model.compile(optimizer=Adam(learning_rate=initial_lr), loss='mse', metrics=[r_squared, 'mape', accuracy, average_relative_rmse, 'msle', 'mae'])
+model.compile(optimizer=Adam(learning_rate=initial_lr), loss='mse', metrics=[r_squared, 'mape', accuracy, 'msle', 'mae'])
 print(model.summary())
 
 history = model.fit(X_train, y_train, epochs=600, batch_size=100, validation_data=(X_val, y_val), callbacks=[lr_scheduler, early_stopping])

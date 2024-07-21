@@ -17,7 +17,7 @@ from keras.callbacks import LearningRateScheduler, EarlyStopping, Callback
 from keras.metrics import RootMeanSquaredError
 from keras.layers import Dropout,  TimeDistributed
 from keras.regularizers import l2
-from tensorflow.keras.layers import Input, Dense, Dropout, LayerNormalization, MultiHeadAttention, Concatenate
+from tensorflow.keras.layers import Input, Dense, Dropout, LayerNormalization, MultiHeadAttention, Concatenate, BatchNormalization
 from sklearn.model_selection import train_test_split
 from tensorflow.keras import layers, models, optimizers, losses, metrics
 tf.keras.backend.set_floatx('float64')
@@ -102,7 +102,7 @@ for time in unique_time:
     arrays[time] = array
 
 
-sequence_length = 10
+sequence_length = 2
 input_sequences = []
 output_values = []
 
@@ -135,11 +135,6 @@ def r_squared(y_true, y_pred):
     SS_tot = K.sum(K.square(y_true - K.mean(y_true)))
     return 1 - SS_res / (SS_tot + K.epsilon())
 
-def average_relative_rmse(y_true, y_pred):
-    return K.sqrt(K.mean(K.square((y_pred - y_true) / K.clip(K.abs(y_true), K.epsilon(), None))))
-
-#def average_relative_error(y_true, y_pred):
-    return K.mean(K.abs((y_pred - y_true) / K.clip(K.abs(y_true), K.epsilon(), None)))
 
 def accuracy(y_true, y_pred):
     abs_diff = K.abs(y_true - y_pred)
@@ -148,8 +143,6 @@ def accuracy(y_true, y_pred):
     accuracy = K.mean(accurate_predictions)
     return accuracy
 
-#def explained_variance(y_true, y_pred):
-    return 1 - K.var(y_true - y_pred) / K.var(y_true)
 
 # lr scheduler
 def lr_schedule(epoch, lr):
@@ -161,7 +154,7 @@ def lr_schedule(epoch, lr):
         return 1e-4
 
 # data split
-train_size = int(0.7 * input_sequences.shape[0])
+train_size = int(0.72 * input_sequences.shape[0])
 val_size = int(0.1 * input_sequences.shape[0])
 test_size = input_sequences.shape[0] - train_size - val_size
 
@@ -183,7 +176,7 @@ print("y_test shape:", y_test.shape)
 # parameters and callbacks
 initial_lr = 1e-4
 optimizer = Adam(learning_rate=initial_lr)
-sequence_length = 10
+sequence_length = 2
 early_stopping = EarlyStopping(monitor='val_loss', patience=40, restore_best_weights=True)
 lr_scheduler_callback = LearningRateScheduler(lr_schedule)
 
@@ -191,14 +184,15 @@ lr_scheduler_callback = LearningRateScheduler(lr_schedule)
 model = Sequential([
     Conv2D(filters=32, kernel_size=(3, 3), activation='relu', padding='same', input_shape=(sequence_length, 250, 250, 6)),
     Reshape((sequence_length, -1)),
-    LSTM(units=64, return_sequences=True, kernel_regularizer=l2(0.03)),
-    LSTM(units=64),
+    LSTM(units=100, return_sequences=True, kernel_regularizer=l2(0.03)),
+    LSTM(units=100),
+    BatchNormalization(),
     Dense(units=250*250*6, activation='relu'),
     Reshape((250, 250, 6))
 ])
 
 # compile
-model.compile(optimizer=optimizer, loss='mse',  metrics=[r_squared, 'mape', accuracy, average_relative_rmse, 'msle', 'mae'])
+model.compile(optimizer=optimizer, loss='mse',  metrics=[r_squared, 'mape', accuracy, 'msle', 'mae'])
 
 # fit
 history = model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=1000, batch_size=32, callbacks=[early_stopping, lr_scheduler_callback])

@@ -17,7 +17,7 @@ from keras.callbacks import LearningRateScheduler, EarlyStopping, Callback
 from keras.metrics import RootMeanSquaredError
 from keras.layers import Dropout,  TimeDistributed
 from keras.regularizers import l2
-from tensorflow.keras.layers import Input, Dense, Dropout, LayerNormalization, MultiHeadAttention, Concatenate
+from tensorflow.keras.layers import Input, Dense, Dropout, LayerNormalization, MultiHeadAttention, Concatenate, BatchNormalization
 from sklearn.model_selection import train_test_split
 from tensorflow.keras import layers, models, optimizers, losses, metrics
 tf.keras.backend.set_floatx('float64')
@@ -102,7 +102,7 @@ for time in unique_time:
     arrays[time] = array
 
 
-sequence_length = 10
+sequence_length = 2
 input_sequences = []
 output_values = []
 
@@ -135,11 +135,7 @@ def r_squared(y_true, y_pred):
     SS_tot = K.sum(K.square(y_true - K.mean(y_true)))
     return 1 - SS_res / (SS_tot + K.epsilon())
 
-def average_relative_rmse(y_true, y_pred):
-    return K.sqrt(K.mean(K.square((y_pred - y_true) / K.clip(K.abs(y_true), K.epsilon(), None))))
 
-#def average_relative_error(y_true, y_pred):
-    return K.mean(K.abs((y_pred - y_true) / K.clip(K.abs(y_true), K.epsilon(), None)))
 
 def accuracy(y_true, y_pred):
     abs_diff = K.abs(y_true - y_pred)
@@ -148,10 +144,7 @@ def accuracy(y_true, y_pred):
     accuracy = K.mean(accurate_predictions)
     return accuracy
 
-#def explained_variance(y_true, y_pred):
-    return 1 - K.var(y_true - y_pred) / K.var(y_true)
 
-#lr scheduler
 def lr_schedule(epoch, lr):
     if epoch < 100:
         return 1e-6
@@ -160,23 +153,20 @@ def lr_schedule(epoch, lr):
     else:
         return 1e-4
 
-#model architecture
+# SpatialTemporalAttention class
 class SpatialTemporalAttention(tf.keras.layers.Layer):
     def __init__(self, hidden_size):
         super(SpatialTemporalAttention, self).__init__()
         self.hidden_size = hidden_size
-        self.W_s = tf.keras.layers.Dense(hidden_size)
-        self.W_t = tf.keras.layers.Dense(hidden_size)
-        self.V = tf.keras.layers.Dense(1)
+        self.W_s = Dense(hidden_size)
+        self.W_t = Dense(hidden_size)
+        self.V = Dense(1)
 
     def call(self, lstm_output, input_data):
-        # attention weights
         spatial_attention = tf.tanh(self.W_s(lstm_output))
         temporal_attention = tf.tanh(self.W_t(input_data))
         attention_scores = self.V(spatial_attention * temporal_attention)
         attention_weights = tf.nn.softmax(attention_scores, axis=1)
-        
-        # apply attention to LSTM output
         attended_output = tf.matmul(tf.transpose(attention_weights, [0, 2, 1]), lstm_output)
         return attended_output
 
@@ -184,39 +174,41 @@ class STALSTM(tf.keras.Model):
     def __init__(self, hidden_size, input_shape):
         super(STALSTM, self).__init__()
         self.hidden_size = hidden_size
-        self.lstm = tf.keras.layers.LSTM(hidden_size, return_sequences=True)
+        self.lstm = LSTM(hidden_size, return_sequences=True)
         self.attention = SpatialTemporalAttention(hidden_size)
-        self.fc1 = tf.keras.layers.Dense(50, activation='relu',  kernel_regularizer=l2(0.01))
-        self.fc2 = tf.keras.layers.Dense(50, activation='relu',  kernel_regularizer=l2(0.01))
-        self.fc3 = tf.keras.layers.Dense(tf.reduce_prod(input_shape[1:]), activation='relu')
-        self.reshape = tf.keras.layers.Reshape(input_shape[1:])  # reshape to match output shape
+        self.fc1 = Dense(50, activation='relu', kernel_regularizer=l2(0.01))
+        self.fc2 = Dense(50, activation='relu', kernel_regularizer=l2(0.01))
+        self.batch_norm = BatchNormalization()
+        self.fc3 = Dense(tf.reduce_prod(input_shape[1:]), activation='relu')
+        self.reshape = Reshape(input_shape[1:])
         self.input_shape_model = input_shape
 
     def call(self, input_data):
         lstm_output = self.lstm(input_data)
         attended_output = self.attention(lstm_output, input_data)
-        x = tf.reshape(attended_output, (-1, self.hidden_size))  # flatten for fully connected layers
+        x = tf.reshape(attended_output, (-1, self.hidden_size))
         x = self.fc1(x)
         x = self.fc2(x)
+        x = self.batch_norm(x)
         output = self.fc3(x)
-        output = self.reshape(output)  # reshape to match input shape
+        output = self.reshape(output)
         return output
 
+# Reshape input sequences
 input_sequences_reshaped = input_sequences.reshape(input_sequences.shape[0], input_sequences.shape[1], -1)
 print(input_sequences_reshaped.shape)
 
-#data split
+# Data split
 train_size = int(0.7 * input_sequences_reshaped.shape[0])
-test_size = int(0.2 * input_sequences_reshaped.shape[0])
-val_size = input_sequences_reshaped.shape[0] - train_size - test_size
+val_size = int(0.19 * input_sequences_reshaped.shape[0])
+test_size = input_sequences_reshaped.shape[0] - train_size - val_size
 
 X_train = input_sequences_reshaped[:train_size]
-X_test = input_sequences_reshaped[train_size:train_size + test_size]
-X_val = input_sequences_reshaped[train_size + test_size:]
-
+X_val = input_sequences_reshaped[train_size:train_size + val_size]
+X_test = input_sequences_reshaped[train_size + val_size:]
 y_train = output_values[:train_size]
-y_test = output_values[train_size:train_size + test_size]
-y_val = output_values[train_size + test_size:]
+y_val = output_values[train_size:train_size + val_size]
+y_test = output_values[train_size + val_size:]
 
 print("X_train shape:", X_train.shape)
 print("X_val shape:", X_val.shape)
@@ -228,26 +220,27 @@ print("y_test shape:", y_test.shape)
 input_shape = input_sequences.shape[1:]
 print(input_shape)
 
+# Initialize the model
 model = STALSTM(hidden_size=64, input_shape=input_shape)
 
-# build the model by calling it on a batch of data
-sample_input = tf.convert_to_tensor(X_train[:1])  # take a sample batch
-_ = model(sample_input)  # calling the model on a sample input to build it
+# Build the model by calling it on a batch of data
+sample_input = tf.convert_to_tensor(X_train[:1])
+_ = model(sample_input)
 
-#parameters and callbacks
+# Parameters and callbacks
 lr_scheduler = LearningRateScheduler(lr_schedule)
 early_stopping = EarlyStopping(monitor='val_loss', patience=40, verbose=1, restore_best_weights=True)
 initial_lr = 1e-6
 
-#compile
-model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=initial_lr), loss='mse',  metrics=[r_squared, 'mape', accuracy, average_relative_rmse, 'msle', 'mae'] )
+# Compile the model
+model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=initial_lr), loss='mse', metrics=[r_squared, 'mape', accuracy, 'msle', 'mae'])
 
 print(model.summary())
 
-#train
+# Train the model
 history = model.fit(X_train, y_train, epochs=1000, batch_size=4, validation_data=(X_val, y_val), callbacks=[lr_scheduler, early_stopping])
 
-#evaluate
+# Evaluate the model
 loss = model.evaluate(X_test, y_test)
 print("Test Loss:", loss)
 
