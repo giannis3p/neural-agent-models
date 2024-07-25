@@ -208,30 +208,30 @@ y_pred = model.predict(X_test)
 y_pred_shape = y_pred.shape
 y_test_shape = y_test.shape
 
-# Flatten the y_pred and y_test tensors
-y_pred_flattened = np.reshape(y_pred, (y_pred_shape[0], -1, y_pred_shape[-1]))
-y_test_flattened = np.reshape(y_test, (y_test_shape[0], -1, y_test_shape[-1]))
-
 # Create arrays for x and y coordinates
-X = np.repeat(np.arange(y_test_shape[1]), y_test_shape[2])
-Y = np.tile(np.arange(y_test_shape[2]), y_test_shape[1])
+X = np.arange(y_test_shape[1])
+Y = np.arange(y_test_shape[2])
 
 # Initialize a list to hold all data for the DataFrame
 all_data = []
 
 # Loop through each timestep and collect the data
 for timestep in range(y_pred_shape[0]):
-    y_pred_timestep = y_pred_flattened[timestep]
-    for i in range(y_pred_timestep.shape[0]):
-        data_point = {'timestep': timestep, 'X': X[i], 'Y': Y[i]}
-        data_point.update({f'feature_{j+1}': y_pred_timestep[i, j] for j in range(y_pred_shape[-1])})
-        all_data.append(data_point)
+    for i in X:
+        for j in Y:
+            if not np.all(y_pred[timestep, i, j] == 0):  # Only include non-zero entries
+                data_point = {'timestep': timestep, 'x': i, 'y': j}
+                data_point.update({f'feature_{k+1}': y_pred[timestep, i, j, k] for k in range(y_pred_shape[-1])})
+                all_data.append(data_point)
 
-# Create the DataFrame
-df_all_timesteps = pd.DataFrame(all_data)
+# Create the DataFrame with the correct columns
+df_all_timesteps = pd.DataFrame(all_data, columns=['timestep', 'x', 'y', 'feature_1', 'feature_2', 'feature_3', 'feature_4', 'feature_5', 'feature_6'])
 
 # Save the DataFrame to a CSV file
-df_all_timesteps.to_csv('C-LSTM(100x100)(82-100hrs).csv', index=False)
+csv_path = 'C-LSTM(100x100)(82-100hrs).csv'
+df_all_timesteps.to_csv(csv_path, index=False)
+
+print(f"Data saved to {csv_path}")
 
 
 train_loss = history.history['loss'][1:600]
@@ -266,15 +266,20 @@ loss_df.to_csv(csv_path, index=False)
 
 print(f'Loss data saved to {csv_path}')
 
+import numpy as np
+import os
+import matplotlib.pyplot as plt
+
 # Combine y_test and y_pred for easier range calculation
 combined_data = np.concatenate([y_test, y_pred])
 
-output_dir = 'plots(100x100)/plots-C-LSTM'
+output_dir = 'plots-PINN'
 os.makedirs(output_dir, exist_ok=True)
 
 # Mask zeros and small values, set lower limit for log scale
 masked_data = np.ma.masked_equal(combined_data, 0)
-lower_limit = 1e-13
+lower_limit = 1e-12
+upper_limit = 1e-7
 
 # Calculate min and max values for each cytokine, ignoring zeros and clipping
 min_values = np.ma.min(masked_data, axis=(0, 1, 2))
@@ -296,27 +301,42 @@ y_pred_std = np.std(y_pred_avg, axis=0)
 
 # Time steps (assuming they are from t=82 to t=100)
 time_steps = np.arange(82, 101)
+selected_time_steps = [82, 90, 100]
 
-labels = ['il-8', 'il-1', 'il-6', 'il-10', 'tnf', 'tgf']
+# Labels and corresponding indices to plot
+labels_to_plot = ['IL-8', 'IL-6', 'TGF']
+indices_to_plot = [0, 2, 5]  # indices for 'IL-8', 'IL-6', 'TGF' in the original labels list
+custom_limits = [(1e-10, 1e-2), (1e-13, 1e-9), (1e-12, 1e-8)]
 
-# Plotting
-fig, axs = plt.subplots(6, 1, figsize=(12, 18), sharex=True)
+# Plotting each selected feature separately
+for i, label, (lower, upper) in zip(indices_to_plot, labels_to_plot, custom_limits):
+    plt.figure(figsize=(10, 4))
+    plt.plot(time_steps, y_test_avg[:, i], label='Actual Mean', marker='o')
+    plt.plot(time_steps, y_pred_avg[:, i], label='C-LSTM Prediction Mean', marker='x')
 
-for i in range(6):
-    axs[i].plot(time_steps, y_test_avg[:, i], label='Actual', marker='o')
-    axs[i].plot(time_steps, y_pred_avg[:, i], label='Predicted', marker='x')
-    axs[i].set_title(f'{labels[i]} Concentration over Time\nMean ± Std: {y_pred_mean[i]:.2e} ± {y_pred_std[i]:.2e}')
-    axs[i].set_ylabel('Concentration (log scale)')
-    axs[i].set_yscale('log')
-    axs[i].set_ylim(lower_limit, max_values[i])
-    axs[i].legend()
-
-axs[-1].set_xlabel('Time Step')
-
-plt.tight_layout()
-
-# save the plot to the specified folder
-plot_filename = f'{labels[i]}(t=82 to t=100)(time series plot)(100-c-82).png'
-plot_path = os.path.join(output_dir, plot_filename)
-plt.savefig(plot_path)
-plt.show()
+    plt.ylabel('Concentration', fontsize=12)
+    plt.yscale('log')
+    plt.ylim(lower, upper)
+    
+    plt.xticks(selected_time_steps)
+    
+    # Display means and stds numerically outside the plot
+    textstr = '\n'.join((
+        f'Mean (Actual): {y_test_mean[i]:.2e}',
+        f'Mean (Prediction): {y_pred_mean[i]:.2e}',
+        f'Std (Actual): {y_test_std[i]:.2e}',
+        f'Std (Prediction): {y_pred_std[i]:.2e}',
+    ))
+    plt.gcf().text(0.5, 0.7, textstr, fontsize=12,
+                   verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.5))
+    
+    plt.xlabel('Time', fontsize=12)
+    plt.title(label, fontsize=14)
+    plt.legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize=12)
+    plt.tight_layout(rect=[0, 0, 0.75, 1])
+    
+    # Save the plot to the specified folder
+    plot_filename = f'{label}_concentrations_time_series.png'
+    plot_path = os.path.join(output_dir, plot_filename)
+    plt.savefig(plot_path, bbox_inches='tight')
+    plt.show()
