@@ -1,3 +1,3 @@
-- <code>LatticeData/</code>: Contains .vtk files generated from CompuCell3D required to run the PINN.
-- <code>PINN/</code>: contains some data files generated to compute cellpresence when running the PINN.
-- <code>simulation data/</code>: Contains the simulation data generated from CompuCell3D for 50x50, 100x100, 250x250, and 500x500 grid dimensions.
+- <code>plots_data/</code>: data used for plotting.
+- <code>simulation data/</code>: data files generated from CompuCell3D simulations.
+- <code>training_data/</code>: data generated during model training.

@@ -1,6 +1,8 @@
 # From Simulations to Surrogates: Neural Networks Enhancing Burn Wound Healing Predictions
 
-- <code>data/</code>: Contains data files required to run the code as well as files generated from then neural networks.
+- <code>auxiliary/</code>: Collection of supplementary material.
+- <code>data/</code>: Contains data files required to run the code as well as data files generated from then neural networks.
+- <code>Figures/</code>: Contains the figures used in the manuscript.
 - <code>scripts/</code>: Contains the scripts used to train the neural networks.
 
 # In order to run this code you need Python 3.8.0 and the following:
