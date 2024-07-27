@@ -1,8 +1,7 @@
 # From Simulations to Surrogates: Neural Networks Enhancing Burn Wound Healing Predictions
 
-- <code>data/</code>: Contains simulation data required to run the code.
-- <code>notebooks/</code>: Contains the notebooks used to train and evaluate LSTM and PINN.
-- <code>scripts/</code>: Contains the scripts used to run the code for higher grid dimensions on GPU cluster.
+- <code>data/</code>: Contains data files required to run the code as well as files generated from then neural networks.
+- <code>scripts/</code>: Contains the scripts used to train the neural networks.
 
 # In order to run this code you need Python 3.8.0 and the following:
 
