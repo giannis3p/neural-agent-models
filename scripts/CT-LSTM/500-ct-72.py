@@ -208,7 +208,7 @@ initial_lr = 1e-3
 model.compile(optimizer='adam', loss='mse', metrics=[r_squared, 'mape', 'accuracy', average_relative_rmse, 'msle', 'mae'])
 
 #fit
-history = model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=1000, batch_size=16, callbacks=[lr_scheduler, early_stopping])
+history = model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=1000, batch_size=8, callbacks=[lr_scheduler, early_stopping])
 
 #evaluate
 test_metrics = model.evaluate(X_test, y_test)

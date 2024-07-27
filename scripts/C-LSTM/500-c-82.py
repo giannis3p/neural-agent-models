@@ -205,7 +205,7 @@ model = Sequential([
 model.compile(optimizer=optimizer, loss='mse',  metrics=[r_squared, 'mape', accuracy, average_relative_rmse, 'msle', 'mae'])
 
 # fit
-history = model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=1000, batch_size=32, callbacks=[early_stopping, lr_scheduler_callback])
+history = model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=1000, batch_size=8, callbacks=[early_stopping, lr_scheduler_callback])
 
 # evaluate
 loss = model.evaluate(X_test, y_test)
