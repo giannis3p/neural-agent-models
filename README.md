@@ -18,3 +18,5 @@ pip install scikit-learn==1.3.2 <br />
 If you want to run on GPU the compatible CUDA versions with python 3.8.0 are:
 
 CUDA 11.2 and cuDNN 8.1
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13867717.svg)](https://doi.org/10.5281/zenodo.13867717)
