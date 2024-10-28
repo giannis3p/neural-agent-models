@@ -1,3 +1,3 @@
 - <code>plots_data/</code>: data used for plotting.
-- <code>simulation data/</code>: data files generated from CompuCell3D simulations.
+- <code>simulation_data/</code>: data files generated from CompuCell3D simulations.
 - <code>training_data/</code>: data generated during model training.
